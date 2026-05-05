@@ -1,10 +1,24 @@
-
 plugins {
     id 'com.android.library'
     id 'com.google.devtools.ksp'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
     id 'org.jetbrains.kotlin.plugin.serialization'
+    id("maven-publish") apply true
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+
+                groupId = "com.afkanerd"
+                artifactId = "lib_smsmms_android"
+                version = "1.0.0"
+            }
+        }
+    }
 }
 
 android {
@@ -168,7 +182,8 @@ dependencies {
 
     // Alternatively - without an Android dependency.
     implementation "androidx.datastore:datastore-preferences-core:1.2.0"
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0") // Check for the latest version on [Android Developers](https://developer.android.com)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    // Check for the latest version on [Android Developers](https://developer.android.com)
 
 
 }
