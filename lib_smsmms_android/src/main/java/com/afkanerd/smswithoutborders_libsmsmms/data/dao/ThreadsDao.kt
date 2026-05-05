@@ -11,8 +11,15 @@ import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
 @Dao
 interface ThreadsDao {
 
-    @Query("SELECT * FROM Threads WHERE isArchive = 0 AND address IS NOT NULL ORDER BY date DESC")
-    fun getThreads(): PagingSource<Int, Threads>
+    @Query("SELECT * FROM Threads WHERE isArchive = 0 AND address IS NOT NULL ORDER BY isPinned DESC, date DESC")
+    fun getThreads0(): PagingSource<Int, Threads>
+
+    @Query("SELECT * FROM Threads WHERE isArchive = 0 AND address IS NOT NULL AND isPinned = 1 ORDER BY date DESC, isPinned DESC")
+    fun getPinnedOnly(): PagingSource<Int, Threads>
+
+    fun getThreads(): PagingSource<Int, Threads>{
+        return this.getThreads0();
+    }
 
 //    @Query("""
 //        SELECT T1.* FROM Threads T1
@@ -84,6 +91,7 @@ interface ThreadsDao {
             "tc.unread, " +
             "tc.isMms, " +
             "tc.isBlocked, " +
+            "tc.isPinned," +
             "SUM(CASE WHEN read = 0 THEN 1 ELSE 0 END) as unreadCount, " +
             "c.body AS snippet " +
             "FROM Threads tc LEFT JOIN Conversations c " +
@@ -105,6 +113,7 @@ interface ThreadsDao {
             "tc.unread, " +
             "tc.isMms, " +
             "tc.isBlocked, " +
+            "tc.isPinned," +
             "SUM(CASE WHEN read = 0 THEN 1 ELSE 0 END) as unreadCount, " +
             "c.body AS snippet " +
             "FROM Threads tc LEFT JOIN Conversations c " +
