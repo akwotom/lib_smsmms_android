@@ -27,9 +27,11 @@ import kotlin.concurrent.Volatile
     entities = [
         Conversations::class,
         Threads::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = []
+    autoMigrations = [
+        AutoMigration(from=2, to=3)
+    ]
 )
 abstract class DatabaseImpl : RoomDatabase() {
     abstract fun conversationsDao(): ConversationsDao?
