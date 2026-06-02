@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.LogoDev
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -173,9 +175,9 @@ fun ImportDetails(
         },
         onDismissRequest = { dismissCallback?.invoke() },
         confirmButton = {
-            if(BuildConfig.DEBUG)
+            if (BuildConfig.DEBUG)
                 TextButton(
-                    onClick = {resetConfirmCallback?.invoke()}
+                    onClick = { resetConfirmCallback?.invoke() }
                 ) {
                     Text(
                         stringResource(R.string.reset_and_import),
@@ -229,15 +231,21 @@ private fun ThreadConversationsAvatar(
             } else {
                 val color = remember(id, name) { Color("$id / $name".toHslColor()) }
                 val initials = remember(id, name) {
-                    name.run { this.split(" ").run {
-                        if(this.size > 1) this[0].take(1) + this[1].take(1)
-                        else this[0].take(1) }
+                    name.run {
+                        this.split(" ").run {
+                            if (this.size > 1) this[0].take(1) + this[1].take(1)
+                            else this[0].take(1)
+                        }
                     }.uppercase()
                 }
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(SolidColor(color))
                 }
-                Text(text = initials, style = MaterialTheme.typography.titleSmall, color = Color.White)
+                Text(
+                    text = initials,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White
+                )
             }
         } else {
             Icon(
@@ -266,26 +274,28 @@ fun ThreadConversationCard(
     isSelected: Boolean = false,
     isMuted: Boolean = false,
     isBlocked: Boolean = false,
+    isPinned: Boolean = false,
     type: Int,
     mms: Boolean = false,
 ) {
     val context = LocalContext.current
 
-    val weight = if(isRead || isBlocked) {
+    val weight = if (isRead || isBlocked) {
         FontWeight.Normal
     } else {
         FontWeight.Bold
     }
 
-    val colorHeadline = if(isRead || isBlocked) {
+    val colorHeadline = if (isRead || isBlocked) {
         MaterialTheme.colorScheme.secondary
     } else {
         MaterialTheme.colorScheme.onBackground
     }
 
-    val colorContent = when(type) {
+    val colorContent = when (type) {
         Telephony.Sms.MESSAGE_TYPE_FAILED ->
             MaterialTheme.colorScheme.error
+
         Telephony.Sms.MESSAGE_TYPE_OUTBOX -> MaterialTheme.colorScheme.secondary
         else -> colorHeadline
     }
@@ -299,34 +309,37 @@ fun ThreadConversationCard(
     )
 
     val supportContent = remember(type) {
-        when(type) {
+        when (type) {
             Telephony.Sms.MESSAGE_TYPE_DRAFT ->
                 context.getString(R.string.thread_conversation_type_draft) + ": $content"
+
             Telephony.Sms.MESSAGE_TYPE_QUEUED,
             Telephony.Sms.MESSAGE_TYPE_OUTBOX ->
-                context.getString(R.string.sms_status_sending)+ ": $content"
+                context.getString(R.string.sms_status_sending) + ": $content"
+
             Telephony.Sms.MESSAGE_TYPE_FAILED ->
-                context.getString(R.string.sms_status_failed_only)+ ": $content"
+                context.getString(R.string.sms_status_failed_only) + ": $content"
+
             Telephony.Sms.MESSAGE_TYPE_SENT ->
-                context.getString(R.string.messages_thread_you)+ " $content"
+                context.getString(R.string.messages_thread_you) + " $content"
+
             else -> content.ifEmpty {
                 if (mms) {
                     context.getString(R.string.image)
-                }
-                else ""
+                } else ""
             }
         }
     }
 
     val fontStyle = remember(type) {
-        if(
+        if (
             type == Telephony.Sms.MESSAGE_TYPE_DRAFT ||
             type == Telephony.Sms.MESSAGE_TYPE_QUEUED ||
             type == Telephony.Sms.MESSAGE_TYPE_FAILED
         ) FontStyle.Italic else null
     }
 
-    val maxLine = remember(isRead) { if(isRead) 1 else 3 }
+    val maxLine = remember(isRead) { if (isRead) 1 else 3 }
 
     val avatar = @androidx.compose.runtime.Composable {
         ThreadConversationsAvatar(
@@ -340,7 +353,7 @@ fun ThreadConversationCard(
     ListItem(
         modifier = modifier,
         colors = ListItemDefaults.colors(
-            containerColor =containerColor
+            containerColor = containerColor
         ),
         headlineContent = {
             Row {
@@ -351,14 +364,16 @@ fun ThreadConversationCard(
                     fontWeight = weight
                 )
 
-                if(isMuted)
-                    Icon(Icons.Default.NotificationsOff,
+                if (isMuted)
+                    Icon(
+                        Icons.Default.NotificationsOff,
                         stringResource(R.string.thread_muted),
                         modifier = Modifier.size(16.dp)
                     )
 
-                if(isBlocked)
-                    Icon(Icons.Filled.Block,
+                if (isBlocked)
+                    Icon(
+                        Icons.Filled.Block,
                         stringResource(R.string.contact_is_blocked),
                         modifier = Modifier.size(16.dp)
                     )
@@ -375,13 +390,24 @@ fun ThreadConversationCard(
             )
         },
         trailingContent = {
-            Text(
-                text = date,
-                color = colorContent,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = weight,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            Column(
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.padding(bottom = 24.dp),
+            ) {
+
+                if (isPinned) Icon(
+                    Icons.Default.PushPin,
+                    contentDescription = "Pinned conversation"
+                )
+
+                Text(
+                    text = date,
+                    color = colorContent,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = weight,
+                )
+            }
         },
         leadingContent = avatar
     )
@@ -398,7 +424,8 @@ fun ModalDrawerSheetLayout(
         Text(
             stringResource(R.string.folders),
             fontSize = 12.sp,
-            modifier = Modifier.padding(16.dp))
+            modifier = Modifier.padding(16.dp)
+        )
 
         HorizontalDivider()
 
@@ -419,7 +446,7 @@ fun ModalDrawerSheetLayout(
                 },
                 label = {
                     Text(
-                        stringResource(R.string.conversations_navigation_view_inbox ),
+                        stringResource(R.string.conversations_navigation_view_inbox),
                         fontSize = 14.sp
                     )
                 },
@@ -427,7 +454,7 @@ fun ModalDrawerSheetLayout(
                     Text("0", fontSize = 14.sp)
                 },
                 selected = selectedItemIndex == ThreadsViewModel.InboxType.INBOX,
-                onClick = { callback?.let{ it(ThreadsViewModel.InboxType.INBOX) } }
+                onClick = { callback?.let { it(ThreadsViewModel.InboxType.INBOX) } }
             )
             NavigationDrawerItem(
                 icon = {
@@ -438,7 +465,7 @@ fun ModalDrawerSheetLayout(
                 },
                 label = {
                     Text(
-                        stringResource(R.string.conversations_navigation_view_archived ),
+                        stringResource(R.string.conversations_navigation_view_archived),
                         fontSize = 14.sp
                     )
                 },
@@ -446,7 +473,7 @@ fun ModalDrawerSheetLayout(
                     Text("0", fontSize = 14.sp)
                 },
                 selected = selectedItemIndex == ThreadsViewModel.InboxType.ARCHIVED,
-                onClick = { callback?.let{ it(ThreadsViewModel.InboxType.ARCHIVED) } }
+                onClick = { callback?.let { it(ThreadsViewModel.InboxType.ARCHIVED) } }
             )
 
             HorizontalDivider(Modifier.padding(8.dp))
@@ -468,7 +495,7 @@ fun ModalDrawerSheetLayout(
                     Text("0", fontSize = 14.sp)
                 },
                 selected = selectedItemIndex == ThreadsViewModel.InboxType.DRAFTS,
-                onClick = { callback?.let{ it(ThreadsViewModel.InboxType.DRAFTS) } }
+                onClick = { callback?.let { it(ThreadsViewModel.InboxType.DRAFTS) } }
             )
 
             NavigationDrawerItem(
@@ -487,7 +514,7 @@ fun ModalDrawerSheetLayout(
                 badge = {
                 },
                 selected = selectedItemIndex == ThreadsViewModel.InboxType.MUTED,
-                onClick = { callback?.let{ it(ThreadsViewModel.InboxType.MUTED) } }
+                onClick = { callback?.let { it(ThreadsViewModel.InboxType.MUTED) } }
             )
 
             NavigationDrawerItem(
@@ -506,10 +533,10 @@ fun ModalDrawerSheetLayout(
                 badge = {
                 },
                 selected = selectedItemIndex == ThreadsViewModel.InboxType.BLOCKED,
-                onClick = { callback?.let{ it(ThreadsViewModel.InboxType.BLOCKED) } }
+                onClick = { callback?.let { it(ThreadsViewModel.InboxType.BLOCKED) } }
             )
 
-            if(BuildConfig.DEBUG || LocalInspectionMode.current) {
+            if (BuildConfig.DEBUG || LocalInspectionMode.current) {
                 HorizontalDivider(Modifier.padding(8.dp))
 
                 NavigationDrawerItem(
@@ -528,7 +555,7 @@ fun ModalDrawerSheetLayout(
                     badge = {
                     },
                     selected = selectedItemIndex == ThreadsViewModel.InboxType.DEVELOPER,
-                    onClick = { callback?.let{ it(ThreadsViewModel.InboxType.DEVELOPER) } }
+                    onClick = { callback?.let { it(ThreadsViewModel.InboxType.DEVELOPER) } }
                 )
 
             }
@@ -549,22 +576,27 @@ fun ThreadsNavMenuItems(
     val defaultPermission = rememberPermissionState(Manifest.permission.READ_SMS)
 
     val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
         uri?.let {
             CoroutineScope(Dispatchers.IO).launch {
                 with(context.contentResolver.openFileDescriptor(uri, "w")) {
                     this?.fileDescriptor.let { fd ->
                         val fileOutputStream = FileOutputStream(fd);
-                        fileOutputStream.write(context.exportRawWithColumnGuesses()
-                            .encodeToByteArray())
+                        fileOutputStream.write(
+                            context.exportRawWithColumnGuesses()
+                                .encodeToByteArray()
+                        )
                         fileOutputStream.close();
                     }
                     this?.close();
 
                     CoroutineScope(Dispatchers.Main).launch {
-                        Toast.makeText(context,
+                        Toast.makeText(
+                            context,
                             context.getString(R.string.conversations_exported_complete),
-                            Toast.LENGTH_LONG).show();
+                            Toast.LENGTH_LONG
+                        ).show();
                     }
                 }
             }
@@ -572,7 +604,8 @@ fun ThreadsNavMenuItems(
     }
 
     val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()) { uri ->
+        ActivityResultContracts.GetContent()
+    ) { uri ->
         uri?.let {
             CoroutineScope(Dispatchers.IO).launch {
                 // TODO: implement
@@ -597,20 +630,21 @@ fun ThreadsNavMenuItems(
     }
 
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .wrapContentSize(Alignment.TopEnd)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentSize(Alignment.TopEnd)
     ) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = {
                 dismissCallback?.invoke(false)
-                   },
+            },
         ) {
             DropdownMenuItem(
                 text = {
                     Text(
-                        text=stringResource(R.string.settings_title),
+                        text = stringResource(R.string.settings_title),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 },
@@ -620,7 +654,7 @@ fun ThreadsNavMenuItems(
                 }
             )
 
-            if(defaultPermission.status.isGranted || LocalInspectionMode.current) {
+            if (defaultPermission.status.isGranted || LocalInspectionMode.current) {
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -635,11 +669,11 @@ fun ThreadsNavMenuItems(
                     }
                 )
 
-                if(BuildConfig.DEBUG)
+                if (BuildConfig.DEBUG)
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text= stringResource(R.string.conversation_menu_import),
+                                text = stringResource(R.string.conversation_menu_import),
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                         },
@@ -652,7 +686,7 @@ fun ThreadsNavMenuItems(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text= stringResource(R.string.mark_all_read),
+                            text = stringResource(R.string.mark_all_read),
                             color = MaterialTheme.colorScheme.onBackground
                         )
                     },
@@ -665,7 +699,7 @@ fun ThreadsNavMenuItems(
 
             HorizontalDivider()
 
-            threadMenuItems?.invoke{
+            threadMenuItems?.invoke {
                 dismissCallback?.invoke(it)
             }
 
@@ -674,7 +708,7 @@ fun ThreadsNavMenuItems(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text= stringResource(R.string.reset),
+                        text = stringResource(R.string.reset),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 },
@@ -685,8 +719,10 @@ fun ThreadsNavMenuItems(
 //                            context.getString(R.string.reset_complete), Toast.LENGTH_LONG).show()
 //                    }
                     threadsViewModel.loadNativesAsync(context) {
-                        Toast.makeText(context,
-                            context.getString(R.string.reset_complete), Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.reset_complete), Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             )
@@ -711,9 +747,10 @@ fun SwipeToDeleteBackground(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End
     ) {
-        Column(Modifier
-            .fillMaxHeight()
-            .background(color = MaterialTheme.colorScheme.primary),
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .background(color = MaterialTheme.colorScheme.primary),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -726,9 +763,10 @@ fun SwipeToDeleteBackground(
             }
         }
 
-        Column(Modifier
-            .fillMaxHeight()
-            .background(color = MaterialTheme.colorScheme.error),
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .background(color = MaterialTheme.colorScheme.error),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -744,7 +782,11 @@ fun SwipeToDeleteBackground(
 }
 
 @Preview(showBackground = true, name = "Delete Confirmation Light")
-@Preview(showBackground = true, name = "Delete Confirmation Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    showBackground = true,
+    name = "Delete Confirmation Dark",
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun DeleteConfirmationAlertPreview() {
     DeleteConfirmationAlert(
@@ -754,7 +796,11 @@ fun DeleteConfirmationAlertPreview() {
 }
 
 @Preview(showBackground = true, name = "Import Details Light")
-@Preview(showBackground = true, name = "Import Details Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    showBackground = true,
+    name = "Import Details Dark",
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun ImportDetailsPreview() {
     ImportDetails(
@@ -767,7 +813,11 @@ fun ImportDetailsPreview() {
 }
 
 @Preview(showBackground = true, name = "Modal Drawer Light")
-@Preview(showBackground = true, name = "Modal Drawer Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    showBackground = true,
+    name = "Modal Drawer Dark",
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun ModalDrawerSheetLayoutPreview() {
     ModalDrawerSheetLayout(
@@ -849,7 +899,7 @@ fun getSwipeBehaviour(
     return rememberSwipeToDismissBoxState(
         initialValue = initialValue,
         confirmValueChange = {
-            when(it) {
+            when (it) {
                 SwipeToDismissBoxValue.EndToStart -> {
 //                    when(inboxType) {
 //                        ThreadsViewModel.InboxType.ARCHIVED -> TODO()
@@ -857,6 +907,7 @@ fun getSwipeBehaviour(
 //                    }
                     return@rememberSwipeToDismissBoxState false
                 }
+
                 SwipeToDismissBoxValue.Settled -> return@rememberSwipeToDismissBoxState false
                 else -> return@rememberSwipeToDismissBoxState false
             }

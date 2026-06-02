@@ -20,4 +20,6 @@ data class Threads(
     var isBlocked: Boolean = false,
     var unread: Boolean = true,
     var unreadCount: Int = 0,
+    @ColumnInfo(defaultValue = "0")
+    var isPinned: Boolean = false,
 )
