@@ -23,6 +23,7 @@ import javax.crypto.NoSuchPaddingException
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.security.cert.CertificateException
+import kotlin.io.use
 
 object Cryptography {
     @Throws(
@@ -110,21 +111,42 @@ object Cryptography {
         return cipher.doFinal(data)
     }
 
+    class SecretBytes(private val data: ByteArray) : AutoCloseable {
+        fun useRaw(block: (ByteArray) -> Unit) {
+            if (isClosed) throw IllegalStateException("Cannot use SecretBytes closed")
+            block(data)
+        }
+
+        private var isClosed = false
+        override fun close() {
+            if(isClosed) return
+            data.fill(0)
+            isClosed = true
+        }
+    }
+
     @JvmStatic
-    fun getDatabasePassword(context: Context, keystoreAlias: String) : ByteArray {
+    fun getDatabasePassword(context: Context, keystoreAlias: String) : SecretBytes {
         val password = context.settingsGetDbPassword(keystoreAlias)
-        return if(password == null) {
-            context.generateSecureRandom().run {
+        val raw = if(password == null) {
+            val rawPassword = context.generateSecureRandom()
+            try {
                 val encryptedPassword = encryptWithKeyStore(
                     context,
-                    this,
+                    rawPassword,
                     keystoreAlias
                 )
                 context.settingsSetDbPassword(encryptedPassword, keystoreAlias)
-                this
+                rawPassword
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
+            } finally {
+                rawPassword.fill(0)
             }
         } else {
             decryptWithKeyStore(password, keystoreAlias) ?: throw Exception("Failed to decrypt database keystore")
         }
+        return SecretBytes(raw)
     }
 }
