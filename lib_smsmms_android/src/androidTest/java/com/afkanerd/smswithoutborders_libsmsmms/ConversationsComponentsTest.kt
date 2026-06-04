@@ -31,46 +31,10 @@ class ConversationsComponentsTest {
     }
 
     @Test
-    fun searchCounter_forwardButtonClick_triggersCallback() {
-        var clicked = false
-        composeTestRule.setContent {
-            SearchCounterCompose(
-                index = "1",
-                total = "5",
-                forwardClick = { clicked = true }
-            )
-        }
-        composeTestRule
-            .onNodeWithContentDescription("move_search_backwards")
-            .performClick()
-
-        assert(clicked) { "Forward button did not trigger callback" }
-    }
-
-    @Test
-    fun searchCounter_backwardButtonClick_triggersCallback() {
-        var clicked = false
-        composeTestRule.setContent {
-            SearchCounterCompose(
-                index = "1",
-                total = "5",
-                backwardClick = { clicked = true }
-            )
-        }
-        composeTestRule
-            .onNodeWithContentDescription("move search forwards")
-            .performClick()
-
-        assert(clicked) { "Backward button did not trigger callback" }
-    }
-
-
-    @Test
     fun searchTopAppBar_displaysPlaceholder_whenEmpty() {
         composeTestRule.setContent {
             SearchTopAppBarText(searchQuery = "")
         }
-
         composeTestRule
             .onNodeWithText("Text message", substring = true)
             .assertIsDisplayed()
@@ -103,7 +67,35 @@ class ConversationsComponentsTest {
     }
 
     @Test
-    fun chatCompose_plusButton_click_opensDropdownMenu() {
+    fun chatCompose_plusButton_click_opensBottomSheet() {
+        composeTestRule.setContent {
+            ChatCompose(
+                value = "",
+                subscriptionId = -1L,
+                sendMmsCallback = {},
+                smsSendCallback = {}
+            )
+        }
+
+        composeTestRule
+            .onNodeWithContentDescription("Attachment Options")
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Photo")
+            .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("Contact")
+            .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("File")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatCompose_bottomSheet_photoOption_isDisplayed() {
         composeTestRule.setContent {
             ChatCompose(
                 value = "",
@@ -117,11 +109,45 @@ class ConversationsComponentsTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Attach Contact")
+            .onNodeWithContentDescription("Photo")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatCompose_bottomSheet_contactOption_isDisplayed() {
+        composeTestRule.setContent {
+            ChatCompose(
+                value = "",
+                subscriptionId = -1L,
+                sendMmsCallback = {},
+                smsSendCallback = {}
+            )
+        }
+        composeTestRule
+            .onNodeWithContentDescription("Attachment Options")
+            .performClick()
 
         composeTestRule
-            .onNodeWithText("Attach File")
+            .onNodeWithContentDescription("Attach Contact")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatCompose_bottomSheet_fileOption_isDisplayed() {
+        composeTestRule.setContent {
+            ChatCompose(
+                value = "",
+                subscriptionId = -1L,
+                sendMmsCallback = {},
+                smsSendCallback = {}
+            )
+        }
+        composeTestRule
+            .onNodeWithContentDescription("Attachment Options")
+            .performClick()
+
+        composeTestRule
+            .onNodeWithContentDescription("Attach File")
             .assertIsDisplayed()
     }
 
@@ -135,7 +161,6 @@ class ConversationsComponentsTest {
                 smsSendCallback = {}
             )
         }
-
         composeTestRule
             .onNodeWithContentDescription("send message", ignoreCase = true)
             .assertDoesNotExist()

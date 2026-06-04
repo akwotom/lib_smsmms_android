@@ -348,10 +348,12 @@ fun ChatCompose(
         valueChanged = valueChanged
     )
 
+
     val filePickerLauncher = FilePickerLauncher(
         mmsValueChanged = mmsValueChanged,
         onFileSelected = { uri -> imageUri = uri }
     )
+
 
     var messagingType by remember { mutableStateOf("SMS") }
     var isMenuExpanded by remember { mutableStateOf(false) }
