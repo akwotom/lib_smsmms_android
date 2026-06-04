@@ -224,6 +224,95 @@ fun SearchTopAppBarText(
 }
 
 
+@Composable
+fun FilePickerLauncher(
+    mmsValueChanged: ((Uri) -> Unit)?,
+    onFileSelected: (Uri) -> Unit
+): ManagedActivityResultLauncher<String, Uri?> {
+    val context = LocalContext.current
+
+    return rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { fileUri: Uri? ->
+        fileUri?.let { uri ->
+            val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, flag)
+            mmsValueChanged?.invoke(uri)
+            onFileSelected(uri)
+        }
+    }
+}
+
+@Composable
+fun ContactPickerLauncher(
+    value: String,
+    valueChanged: ((String) -> Unit)?
+): ManagedActivityResultLauncher<Void?, Uri?> {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    return rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { contactUri: Uri? ->
+        contactUri?.let { uri ->
+            coroutineScope.launch(Dispatchers.IO) {
+                var displayName = ""
+                var phoneNumber = ""
+
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(
+                            android.provider.ContactsContract.Contacts.DISPLAY_NAME)
+                        val idIndex = cursor.getColumnIndex(
+                            android.provider.ContactsContract.Contacts._ID)
+
+                        if (nameIndex >= 0) displayName = cursor.getString(nameIndex)
+
+                        val hasPhoneIndex = cursor.getColumnIndex(
+                            android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER)
+                        val hasPhone = if (hasPhoneIndex >= 0)
+                            cursor.getString(hasPhoneIndex) else "0"
+
+                        if (hasPhone == "1" && idIndex >= 0) {
+                            val contactId = cursor.getString(idIndex)
+                            context.contentResolver.query(
+                                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                null,
+                                "${android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                arrayOf(contactId),
+                                null
+                            )?.use { phoneCursor ->
+                                if (phoneCursor.moveToFirst()) {
+                                    val numberIndex = phoneCursor.getColumnIndex(
+                                        android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                    if (numberIndex >= 0) {
+                                        phoneNumber = phoneCursor.getString(numberIndex)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (displayName.isNotEmpty() || phoneNumber.isNotEmpty()) {
+                    val contactTextString = buildString {
+                        if (displayName.isNotEmpty()) append("Name: $displayName")
+                        if (phoneNumber.isNotEmpty()) {
+                            if (displayName.isNotEmpty()) append("\n")
+                            append("Phone: $phoneNumber")
+                        }
+                    }
+                    launch(Dispatchers.Main) {
+                        val updatedText = if (value.isEmpty()) contactTextString
+                        else "$value\n$contactTextString"
+                        valueChanged?.invoke(updatedText)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ChatCompose(
@@ -254,74 +343,15 @@ fun ChatCompose(
         imageUri = uri
     }
 
-    val coroutineScope = rememberCoroutineScope()
-    val contactPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact()
-    ) { contactUri: Uri? ->
-        contactUri?.let { uri ->
-            coroutineScope.launch(Dispatchers.IO) {
-                var displayName = ""
-                var phoneNumber = ""
+    val contactPickerLauncher = ContactPickerLauncher(
+        value = value,
+        valueChanged = valueChanged
+    )
 
-                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndex(android.provider.ContactsContract.Contacts.DISPLAY_NAME)
-                        val idIndex = cursor.getColumnIndex(android.provider.ContactsContract.Contacts._ID)
-
-                        if (nameIndex >= 0) displayName = cursor.getString(nameIndex)
-
-                        val hasPhoneIndex = cursor.getColumnIndex(android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER)
-                        val hasPhone = if (hasPhoneIndex >= 0) cursor.getString(hasPhoneIndex) else "0"
-
-                        if (hasPhone == "1" && idIndex >= 0) {
-                            val contactId = cursor.getString(idIndex)
-                            context.contentResolver.query(
-                                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                null,
-                                "${android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                                arrayOf(contactId),
-                                null
-                            )?.use { phoneCursor ->
-                                if (phoneCursor.moveToFirst()) {
-                                    val numberIndex = phoneCursor.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
-                                    if (numberIndex >= 0) {
-                                        phoneNumber = phoneCursor.getString(numberIndex)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (displayName.isNotEmpty() || phoneNumber.isNotEmpty()) {
-                    val contactTextString = buildString {
-                        if (displayName.isNotEmpty()) append("Name: $displayName")
-                        if (phoneNumber.isNotEmpty()) {
-                            if (displayName.isNotEmpty()) append("\n")
-                            append("Phone: $phoneNumber")
-                        }
-                    }
-
-                    launch(Dispatchers.Main) {
-                        val currentText = value
-                        val updatedText = if (currentText.isEmpty()) contactTextString else "$currentText\n$contactTextString"
-                        valueChanged?.invoke(updatedText)
-                    }
-                }
-            }
-        }
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { fileUri: Uri? ->
-        fileUri?.let { uri ->
-            val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flag)
-            mmsValueChanged?.invoke(uri)
-            imageUri = uri
-        }
-    }
+    val filePickerLauncher = FilePickerLauncher(
+        mmsValueChanged = mmsValueChanged,
+        onFileSelected = { uri -> imageUri = uri }
+    )
 
     var messagingType by remember { mutableStateOf("SMS") }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -401,36 +431,98 @@ fun ChatCompose(
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = isMenuExpanded,
-                            onDismissRequest = { isMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.send_mms_photo)) },
-                                leadingIcon = { Icon(Icons.Outlined.Image, contentDescription = null) },
-                                onClick = {
-                                    isMenuExpanded = false
-                                    imagePicker.launch(arrayOf("image/png", "image/jpg", "image/jpeg"))
-                                }
-                            )
+                        if (isMenuExpanded) {
+                            ModalBottomSheet(
+                                onDismissRequest = { isMenuExpanded = false }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isMenuExpanded = false
+                                                imagePicker.launch(arrayOf(
+                                                    "image/png", "image/jpg", "image/jpeg"
+                                                ))
+                                            },
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Image,
+                                                contentDescription = "Photo",
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.padding(4.dp))
+                                        Text(
+                                            "Photo",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
 
-                            DropdownMenuItem(
-                                text = { Text("Attach Contact") },
-                                leadingIcon = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
-                                onClick = {
-                                    isMenuExpanded = false
-                                    contactPickerLauncher.launch(null)
-                                }
-                            )
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isMenuExpanded = false
+                                                contactPickerLauncher.launch(null)
+                                            },
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.AccountCircle,
+                                                contentDescription = "Attach Contact",
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.padding(4.dp))
+                                        Text(
+                                            "Contact",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
 
-                            DropdownMenuItem(
-                                text = { Text("Attach File") },
-                                leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
-                                onClick = {
-                                    isMenuExpanded = false
-                                    filePickerLauncher.launch("*/*")
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isMenuExpanded = false
+                                                filePickerLauncher.launch("*/*")
+                                            },
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Description,
+                                                contentDescription = "Attach File",
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.padding(4.dp))
+                                        Text(
+                                            "File",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
                                 }
-                            )
+                                Spacer(modifier = Modifier.padding(16.dp))
+                            }
                         }
                     }
                 }
