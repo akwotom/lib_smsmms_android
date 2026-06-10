@@ -461,6 +461,7 @@ fun ChatCompose(
                     }
                 }
 
+
                 Column(
                     Modifier
                         .fillMaxWidth()
