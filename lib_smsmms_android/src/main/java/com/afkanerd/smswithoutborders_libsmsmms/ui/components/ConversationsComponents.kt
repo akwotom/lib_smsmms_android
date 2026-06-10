@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AddCircleOutline
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material3.BottomAppBar
@@ -348,13 +347,6 @@ fun ChatCompose(
         valueChanged = valueChanged
     )
 
-
-    val filePickerLauncher = FilePickerLauncher(
-        mmsValueChanged = mmsValueChanged,
-        onFileSelected = { uri -> imageUri = uri }
-    )
-
-
     var messagingType by remember { mutableStateOf("SMS") }
     var isMenuExpanded by remember { mutableStateOf(false) }
 
@@ -493,32 +485,6 @@ fun ChatCompose(
                                         Spacer(modifier = Modifier.padding(4.dp))
                                         Text(
                                             "Contact",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                isMenuExpanded = false
-                                                filePickerLauncher.launch("*/*")
-                                            },
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        ) {
-                                            Icon(
-                                                Icons.Outlined.Description,
-                                                contentDescription = "Attach File",
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.padding(4.dp))
-                                        Text(
-                                            "File",
                                             style = MaterialTheme.typography.labelMedium
                                         )
                                     }
