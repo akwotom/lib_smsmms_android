@@ -342,7 +342,6 @@ fun ChatCompose(
         valueChanged = valueChanged
     )
     var messagingType by remember { mutableStateOf("SMS") }
-    var isMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(imageUri) {
         messagingType = if(imageUri != null) "MMS" else "SMS"
@@ -409,58 +408,15 @@ fun ChatCompose(
                     Modifier.padding(bottom = 20.dp),
                     verticalArrangement = Arrangement.Bottom,
                 ) {
-                    Box {
-                        IconButton(onClick = { isMenuExpanded = !isMenuExpanded }) {
-                            Icon(
-                                Icons.Outlined.AddCircleOutline,
-                                contentDescription = "Attachment Options",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
-
-                        if (isMenuExpanded) {
-                            ModalBottomSheet(
-                                onDismissRequest = { isMenuExpanded = false }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                isMenuExpanded = false
-                                                contactPickerLauncher.launch(null)
-                                            },
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        ) {
-                                            Icon(
-                                                Icons.Outlined.AccountCircle,
-                                                contentDescription = "Attach Contact",
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.padding(4.dp))
-                                        Text(
-                                            "Contact",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.padding(16.dp))
-                            }
-                        }
+                    IconButton(onClick = { contactPickerLauncher.launch(null) }) {
+                        Icon(
+                            Icons.Outlined.AddCircleOutline,
+                            contentDescription = "Attach Contact",
+                            tint = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                 }
-
 
                 Column(
                     Modifier
