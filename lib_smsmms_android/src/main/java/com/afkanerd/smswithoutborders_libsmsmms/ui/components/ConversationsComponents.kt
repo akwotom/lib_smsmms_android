@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material3.BottomAppBar
@@ -335,18 +336,11 @@ fun ChatCompose(
     }
 
     var imageUri: Uri? by remember { mutableStateOf(imageUri) }
-    val imagePicker = mmsImagePicker { uri ->
-        val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
-        context.contentResolver.takePersistableUriPermission(uri, flag)
-        mmsValueChanged?.invoke(uri)
-        imageUri = uri
-    }
 
     val contactPickerLauncher = ContactPickerLauncher(
         value = value,
         valueChanged = valueChanged
     )
-
     var messagingType by remember { mutableStateOf("SMS") }
     var isMenuExpanded by remember { mutableStateOf(false) }
 
@@ -435,34 +429,6 @@ fun ChatCompose(
                                         .padding(16.dp),
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                isMenuExpanded = false
-                                                imagePicker.launch(arrayOf(
-                                                    "image/png", "image/jpg", "image/jpeg"
-                                                ))
-                                            },
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        ) {
-                                            Icon(
-                                                Icons.Outlined.Image,
-                                                contentDescription = "Photo",
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.padding(4.dp))
-                                        Text(
-                                            "Photo",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
