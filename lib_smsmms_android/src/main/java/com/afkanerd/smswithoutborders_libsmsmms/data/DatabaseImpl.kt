@@ -1,25 +1,16 @@
 package com.afkanerd.smswithoutborders_libsmsmms.data
 
 import android.content.Context
-import android.widget.Toast
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
-import com.afkanerd.lib_smsmms_android.R
 import com.afkanerd.smswithoutborders_libsmsmms.data.Cryptography.getDatabasePassword
 import com.afkanerd.smswithoutborders_libsmsmms.data.dao.ConversationsDao
 import com.afkanerd.smswithoutborders_libsmsmms.data.dao.ThreadsDao
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Conversations
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
-import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.getNativesLoaded
-import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.setNativesLoaded
-import com.afkanerd.smswithoutborders_libsmsmms.ui.viewModels.ThreadsViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.eraseSettings
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import kotlin.concurrent.Volatile
 import kotlin.jvm.java
@@ -32,7 +23,7 @@ import kotlin.jvm.java
     version = 3,
     exportSchema = true,
     autoMigrations = [
-        AutoMigration(from=2, to=3)
+        AutoMigration(from = 2, to = 3)
     ]
 )
 abstract class DatabaseImpl : RoomDatabase() {
@@ -76,6 +67,33 @@ abstract class DatabaseImpl : RoomDatabase() {
                         .fallbackToDestructiveMigration(false)
                         .build()
                 }
+            }
+        }
+
+        /**
+         * This method erases the database, along with other associated settings.
+         */
+        fun erase(context: Context) {
+            context.eraseSettings()
+            java.io.File(databaseName).delete()
+        }
+
+        /**
+         * This method checks if the database is okay, and readable.
+         * Usually, this method is called during the launch of the app,
+         * such that if the method returns false, the user would be prompted to erase everything
+         * and start all over.
+         */
+        fun isOkay(context: Context): Boolean {
+            try {
+                getDatabaseImpl(context)
+                return true
+            } catch (e: Exception) {
+                android.util.Log.d(
+                    "DatabaseImpl",
+                    "The database is not okay because\n${e}\n${e.stackTrace}"
+                )
+                return false
             }
         }
     }

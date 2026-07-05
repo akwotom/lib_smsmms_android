@@ -25,10 +25,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import androidx.window.layout.WindowLayoutInfo
 import com.afkanerd.lib_smsmms_android.R
+import com.afkanerd.smswithoutborders_libsmsmms.data.DatabaseImpl
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Conversations
 import com.afkanerd.smswithoutborders_libsmsmms.ui.ComposeNewMessage
 import com.afkanerd.smswithoutborders_libsmsmms.ui.ContactDetails
 import com.afkanerd.smswithoutborders_libsmsmms.ui.ConversationsMainLayout
+import com.afkanerd.smswithoutborders_libsmsmms.ui.DataErasePrompt
 import com.afkanerd.smswithoutborders_libsmsmms.ui.DeveloperModeMain
 import com.afkanerd.smswithoutborders_libsmsmms.ui.MediaMain
 import com.afkanerd.smswithoutborders_libsmsmms.ui.SearchThreadsMain
@@ -75,6 +77,9 @@ fun NavHostControllerInstance(
 //    }
 
     val context = LocalContext.current
+
+    val isDataCorrupt = remember { mutableStateOf(!DatabaseImpl.isOkay(context)) }
+
     threadsViewModel.execMigrations(context)
 
     NavHost(
@@ -84,17 +89,28 @@ fun NavHostControllerInstance(
     ) {
         builder()
 
-        composable<HomeScreenNav>{ backStackEntry ->
-            ThreadConversationLayout(
-                threadsViewModel = threadsViewModel,
-                navController = navController,
-                threadsMainMenuItems = threadsMainMenuItems,
-                modalNavigationModalItems = modalNavigationModalItems,
-                customBottomBar = customBottomBar,
-                customThreadsView = customThreadsView,
-                showTopBar = showThreadsTopBar,
-                appName = appName,
-            )
+        composable<HomeScreenNav> { backStackEntry ->
+            if (isDataCorrupt.value) {
+                DataErasePrompt(
+                    context = context,
+                    threads = threadsViewModel,
+                    onEraseComplete = {
+                        isDataCorrupt.value = false
+                    }
+                )
+            } else {
+                ThreadConversationLayout(
+                    threadsViewModel = threadsViewModel,
+                    navController = navController,
+                    threadsMainMenuItems = threadsMainMenuItems,
+                    modalNavigationModalItems = modalNavigationModalItems,
+                    customBottomBar = customBottomBar,
+                    customThreadsView = customThreadsView,
+                    showTopBar = showThreadsTopBar,
+                    appName = appName,
+                )
+            }
+
         }
         composable<ConversationsScreenNav> { backStackEntry ->
             val convScreen: ConversationsScreenNav = backStackEntry.toRoute()
@@ -119,7 +135,7 @@ fun NavHostControllerInstance(
                 navController = navController
             )
         }
-        composable<ContactDetailsScreenNav>{ backStackEntry ->
+        composable<ContactDetailsScreenNav> { backStackEntry ->
             val contactsDetailsScreen: ContactDetailsScreenNav = backStackEntry.toRoute()
             ContactDetails(
                 address = contactsDetailsScreen.address,
@@ -129,7 +145,7 @@ fun NavHostControllerInstance(
             )
         }
 
-        composable<ComposeNewMessageScreenNav>{ backStackEntry ->
+        composable<ComposeNewMessageScreenNav> { backStackEntry ->
             val composeDetailsScreen: ComposeNewMessageScreenNav = backStackEntry.toRoute()
             ComposeNewMessage(
                 navController = navController,
@@ -138,15 +154,15 @@ fun NavHostControllerInstance(
             )
         }
 
-        composable<SettingsScreenNav>{
+        composable<SettingsScreenNav> {
             SettingsMain(navController = navController)
         }
 
-        composable<DeveloperModeScreen>{
+        composable<DeveloperModeScreen> {
             DeveloperModeMain(navController)
         }
 
-        composable<ImageViewScreenNav>{ backStackEntry ->
+        composable<ImageViewScreenNav> { backStackEntry ->
             val imageViewScreen: ImageViewScreenNav = backStackEntry.toRoute()
             MediaMain(
                 contentUri = imageViewScreen.contentUri.toUri(),
@@ -167,7 +183,7 @@ private fun FoldOpen(
     navController: NavHostController,
 ) {
     Row {
-        Column(modifier = Modifier.fillMaxWidth(0.5f)){
+        Column(modifier = Modifier.fillMaxWidth(0.5f)) {
             ThreadConversationLayout(
                 threadsViewModel = threadsViewModel,
                 navController = navController,
@@ -175,7 +191,7 @@ private fun FoldOpen(
             )
         }
 
-        if(!homeScreenNav.address.isNullOrEmpty()) {
+        if (!homeScreenNav.address.isNullOrEmpty()) {
             Column {
                 ConversationsMainLayout(
                     address = homeScreenNav.address,
@@ -185,8 +201,7 @@ private fun FoldOpen(
                     foldOpen = true
                 )
             }
-        }
-        else {
+        } else {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -203,7 +218,8 @@ private fun FoldOpen(
 fun NoMessageSelected() {
     Text(
         stringResource(
-            R.string.select_a_conversation_from_the_list_on_the_left),
+            R.string.select_a_conversation_from_the_list_on_the_left
+        ),
         fontSize = 12.sp,
         textAlign = TextAlign.Center
     )

@@ -56,6 +56,10 @@ fun Context.settingsSetDbPassword(password: ByteArray, keystoreAlias: String) {
     }
 }
 
+fun Context.eraseSettings(){
+    this.deleteSharedPreferences(Security.FILENAME)
+}
+
 fun Context.generateSecureRandom() : ByteArray{
     val secureRandom = SecureRandom()
     val secretBytes = ByteArray(32) // Example: 256 bits
