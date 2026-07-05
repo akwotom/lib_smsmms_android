@@ -9,13 +9,12 @@ import java.security.KeyStore
 import java.security.SecureRandom
 
 
-
 private object Security {
     const val FILENAME: String = "com.afkanerd.deku.security"
     const val DB_PASSWORD = "DB_PASSWORD"
 }
 
-fun Context.isAvailableInKeystore(keystoreAlias: String) : Boolean {
+fun Context.isAvailableInKeystore(keystoreAlias: String): Boolean {
     val ks = KeyStore.getInstance("AndroidKeyStore")
     ks.load(null)
     return ks.containsAlias(keystoreAlias)
@@ -33,8 +32,9 @@ fun Context.settingsGetDbPassword(keystoreAlias: String): ByteArray? {
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     ).getString(
-        "Security.DB_PASSWORD_${keystoreAlias}", "").run {
-        if(!this.isNullOrBlank()) Base64.decode(this, Base64.DEFAULT) else null
+        "Security.DB_PASSWORD_${keystoreAlias}", ""
+    ).run {
+        if (!this.isNullOrBlank()) Base64.decode(this, Base64.DEFAULT) else null
     }
 }
 
@@ -50,17 +50,19 @@ fun Context.settingsSetDbPassword(password: ByteArray, keystoreAlias: String) {
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     ).edit {
-        putString("Security.DB_PASSWORD_${keystoreAlias}",
-            Base64.encodeToString(password, Base64.DEFAULT))
+        putString(
+            "Security.DB_PASSWORD_${keystoreAlias}",
+            Base64.encodeToString(password, Base64.DEFAULT)
+        )
         apply()
     }
 }
 
-fun Context.eraseSettings(){
+fun Context.eraseSettings() {
     this.deleteSharedPreferences(Security.FILENAME)
 }
 
-fun Context.generateSecureRandom() : ByteArray{
+fun Context.generateSecureRandom(): ByteArray {
     val secureRandom = SecureRandom()
     val secretBytes = ByteArray(32) // Example: 256 bits
     secureRandom.nextBytes(secretBytes)
