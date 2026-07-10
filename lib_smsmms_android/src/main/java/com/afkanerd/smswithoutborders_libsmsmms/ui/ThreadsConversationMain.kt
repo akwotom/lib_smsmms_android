@@ -1,6 +1,5 @@
 package com.afkanerd.smswithoutborders_libsmsmms.ui
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Debug
 import android.provider.Telephony
@@ -85,10 +84,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.paging.LoadState.Loading
-import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
-import androidx.paging.map
 import com.afkanerd.lib_smsmms_android.R
 import com.afkanerd.smswithoutborders_libsmsmms.data.data.models.DateTimeUtils
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
@@ -112,8 +109,6 @@ import com.afkanerd.smswithoutborders_libsmsmms.ui.viewModels.ThreadsViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.collections.map
 import kotlin.math.roundToInt
@@ -209,7 +204,6 @@ fun ThreadConversationLayout(
     val scope = rememberCoroutineScope()
 
 
-    var cachedExtras: HashMap<String, ThreadsExtended> = HashMap()
 
     BackHandler(
         inboxType != ThreadsViewModel.InboxType.INBOX ||
@@ -633,11 +627,10 @@ fun ThreadConversationLayout(
                             ) {
                                 items(
                                     count = displayedInbox.itemCount,
-                                    key = displayedInbox.itemKey { it.threadId }
+                                    key = displayedInbox.itemKey { it.raw.threadId }
                                 ) { index ->
-                                    val thread = displayedInbox[index] ?: return@items
-
-                                    val extra = cachedExtras.getItem(thread, threadsViewModel, context)
+                                    val enriched = displayedInbox[index] ?: return@items
+                                    val thread = enriched.raw;
 
                                     val offsetX = remember { Animatable(0f) }
                                     val threshold = 300f
@@ -724,11 +717,11 @@ fun ThreadConversationLayout(
 
                                             ThreadConversationCard(
                                                 id = thread.threadId,
-                                                name = extra.contactName ?: thread.address,
+                                                name = enriched.contactName ?: thread.address,
                                                 content = thread.snippet,
                                                 date = date,
                                                 isRead = !thread.unread,
-                                                isContact = extra.isContact,
+                                                isContact = enriched.isContact,
                                                 isBlocked = inboxType == ThreadsViewModel.InboxType.BLOCKED,
                                                 isPinned = thread.isPinned,
                                                 modifier = Modifier.combinedClickable(
@@ -776,7 +769,7 @@ fun ThreadConversationLayout(
                                                 type = thread.type,
                                                 unreadCount = thread.unreadCount,
                                                 mms = thread.isMms,
-                                                contactPhotoUri = extra.contactPhotoUri,
+                                                contactPhotoUri = enriched.contactPhotoUri,
                                             )
                                         }
                                     }
@@ -808,75 +801,6 @@ fun ThreadConversationLayout(
 
 }
 
-/**
- * This class provides access to the same fields that a Threads object has,
- * while providing useful additional fields.
- * The additional fields are mostly about values that are lazily computed and cached.
- */
-@Immutable
-data class ThreadsExtended(
-    val raw: Threads,
-    private val threadsViewModel: ThreadsViewModel,
-    private val context: Context
-) {
-
-    val contactName by lazy {
-        // Now, why? query the system to fetch a contact for a sender id, when it's technically impossible
-        // to store a contact whose "number" is a text-based sender id?
-        if (!this.canBeContact) {
-            raw.address
-        } else {
-            context.retrieveContactName(raw.address)
-        }
-    }
-
-    val contactPhotoUri by lazy {
-        // Now, why search for contact photo for an address that is not saveable as a contact?
-        // Where should the contact photo come from?
-        if (!this.canBeContact) return@lazy null
-
-        threadsViewModel
-            .contactPhoto(context, raw.address).value
-    }
-
-    val isContact by lazy {
-        if (!this.canBeContact) {
-            false
-        } else {
-            !contactName.isNullOrBlank()
-        }
-    }
-
-    /**
-     * This field tells us if the address is saveable as a contact.
-     * This helps us reduce unnecessary computation in other areas.
-     */
-    val canBeContact by lazy {
-        // The address can be a contact, if it starts with a numeric value
-        // When checking, let's not check the entire sequence. Let's further cut costs, by
-        // checking only the first character.
-        Regex("^[0-9+]$").matches(raw.address.first().toString())
-    }
-
-}
-
-
-/**
- * This function maps a flow of paging data, such that it contains
- * necessary information that is frequently computed.
- * In this way, we reduce repetitive work that was previously done on the UI.
- */
-fun HashMap<String, ThreadsExtended>.getItem(
-    thread: Threads,
-    threadsViewModel: ThreadsViewModel,
-    context: Context,
-): ThreadsExtended {
-    // We don't need to always keep re-constructing this object.
-    // We need a way to cache this within the current context
-    return this.getOrPut(thread.address, {
-        ThreadsExtended(thread, threadsViewModel, context)
-    })
-}
 
 @Preview
 @Composable
