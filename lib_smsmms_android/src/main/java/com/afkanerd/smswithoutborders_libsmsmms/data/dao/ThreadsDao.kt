@@ -11,7 +11,7 @@ import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
 @Dao
 interface ThreadsDao {
 
-    @Query("SELECT * FROM Threads WHERE isArchive = 0 AND isBlocked = 0 AND address IS NOT NULL ORDER BY isPinned DESC, date DESC")
+    @Query("SELECT * FROM Threads WHERE isArchive = 0 AND address IS NOT NULL ORDER BY isPinned DESC, date DESC")
     fun getThreads0(): PagingSource<Int, Threads>
 
     @Query("SELECT * FROM Threads WHERE isArchive = 0 AND address IS NOT NULL AND isPinned = 1 ORDER BY date DESC, isPinned DESC")

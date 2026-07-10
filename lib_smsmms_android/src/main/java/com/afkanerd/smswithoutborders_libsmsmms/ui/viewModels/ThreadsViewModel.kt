@@ -7,7 +7,6 @@ import android.provider.Telephony
 import android.widget.Toast
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,7 +20,6 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import androidx.paging.map
 import com.afkanerd.lib_smsmms_android.R
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.ActivitiesConstant
@@ -31,7 +29,6 @@ import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.getDatabase
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.isDefault
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.loadRawSmsMmsDb
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.loadRawThreads
-import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.retrieveContactName
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.retrieveContactPhoto
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.settingsGetDeleteSystem
 import com.afkanerd.smswithoutborders_libsmsmms.extensions.context.unblockContact
@@ -44,13 +41,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
-open class ThreadsViewModel : ViewModel() {
+open class ThreadsViewModel: ViewModel() {
 
     var messagesLoading by mutableStateOf(false)
     var secondaryMessagesLoading by mutableStateOf(false)
@@ -74,7 +69,7 @@ open class ThreadsViewModel : ViewModel() {
     fun toggleDrawerValue() {
         viewModelScope.launch(AndroidUiDispatcher.Main) {
             _drawerState.value.apply {
-                if (isClosed) open() else close()
+                if(isClosed) open() else close()
             }
         }
     }
@@ -103,16 +98,16 @@ open class ThreadsViewModel : ViewModel() {
     var initialLoadSize: Int = 2 * pageSize
     var maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED
 
-    private var threadsPager: Flow<PagingData<ThreadsExtended>>? = null
-    private var archivePager: Flow<PagingData<ThreadsExtended>>? = null
-    private var draftsPager: Flow<PagingData<ThreadsExtended>>? = null
-    private var mutePager: Flow<PagingData<ThreadsExtended>>? = null
-    private var blockedPager: Flow<PagingData<ThreadsExtended>>? = null
+    private var threadsPager: Flow<PagingData<Threads>>? = null
+    private var archivePager: Flow<PagingData<Threads>>? = null
+    private var draftsPager: Flow<PagingData<Threads>>? = null
+    private var mutePager: Flow<PagingData<Threads>>? = null
+    private var blockedPager: Flow<PagingData<Threads>>? = null
 
-    fun getThreads(context: Context): Flow<PagingData<ThreadsExtended>> {
-        if (threadsPager == null) {
+    fun getThreads(context: Context): Flow<PagingData<Threads>> {
+        if(threadsPager == null) {
             threadsPager = Pager(
-                config = PagingConfig(
+                config=PagingConfig(
                     pageSize,
                     prefetchDistance,
                     enablePlaceholder,
@@ -122,15 +117,15 @@ open class ThreadsViewModel : ViewModel() {
                 pagingSourceFactory = {
                     context.getDatabase().threadsDao()!!.getThreads()
                 }
-            ).flow.enrich(this, context).cachedIn(viewModelScope)
+            ).flow.cachedIn(viewModelScope)
         }
         return threadsPager!!
     }
 
-    fun getArchives(context: Context): Flow<PagingData<ThreadsExtended>> {
-        if (archivePager == null) {
+    fun getArchives(context: Context): Flow<PagingData<Threads>> {
+        if(archivePager == null) {
             archivePager = Pager(
-                config = PagingConfig(
+                config=PagingConfig(
                     pageSize,
                     prefetchDistance,
                     enablePlaceholder,
@@ -140,15 +135,15 @@ open class ThreadsViewModel : ViewModel() {
                 pagingSourceFactory = {
                     context.getDatabase().threadsDao()!!.getArchived()
                 }
-            ).flow.enrich(this, context).cachedIn(viewModelScope)
+            ).flow.cachedIn(viewModelScope)
         }
         return archivePager!!
     }
 
-    fun getDrafts(context: Context): Flow<PagingData<ThreadsExtended>> {
-        if (draftsPager == null) {
+    fun getDrafts(context: Context): Flow<PagingData<Threads>> {
+        if(draftsPager == null) {
             draftsPager = Pager(
-                config = PagingConfig(
+                config=PagingConfig(
                     pageSize,
                     prefetchDistance,
                     enablePlaceholder,
@@ -159,15 +154,15 @@ open class ThreadsViewModel : ViewModel() {
                     context.getDatabase().threadsDao()!!
                         .getType(Telephony.Sms.MESSAGE_TYPE_DRAFT)
                 }
-            ).flow.enrich(this, context).cachedIn(viewModelScope)
+            ).flow.cachedIn(viewModelScope)
         }
         return draftsPager!!
     }
 
-    fun getIsMute(context: Context): Flow<PagingData<ThreadsExtended>> {
-        if (mutePager == null) {
+    fun getIsMute(context: Context): Flow<PagingData<Threads>> {
+        if(mutePager == null) {
             mutePager = Pager(
-                config = PagingConfig(
+                config=PagingConfig(
                     pageSize,
                     prefetchDistance,
                     enablePlaceholder,
@@ -177,15 +172,15 @@ open class ThreadsViewModel : ViewModel() {
                 pagingSourceFactory = {
                     context.getDatabase().threadsDao()!!.getIsMute()
                 }
-            ).flow.enrich(this, context).cachedIn(viewModelScope)
+            ).flow.cachedIn(viewModelScope)
         }
         return mutePager!!
     }
 
-    fun getIsBlocked(context: Context): Flow<PagingData<ThreadsExtended>> {
-        if (blockedPager == null) {
+    fun getIsBlocked(context: Context): Flow<PagingData<Threads>> {
+        if(blockedPager == null) {
             blockedPager = Pager(
-                config = PagingConfig(
+                config=PagingConfig(
                     pageSize,
                     prefetchDistance,
                     enablePlaceholder,
@@ -195,7 +190,7 @@ open class ThreadsViewModel : ViewModel() {
                 pagingSourceFactory = {
                     context.getDatabase().threadsDao()!!.getIsBlocked()
                 }
-            ).flow.enrich(this, context).cachedIn(viewModelScope)
+            ).flow.cachedIn(viewModelScope)
         }
         return blockedPager!!
     }
@@ -204,11 +199,9 @@ open class ThreadsViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 context.getDatabase().threadsDao()?.delete(threads)
-                if (context.settingsGetDeleteSystem) {
-                    context.deleteSmsThreads(
-                        threads
-                            .map { it.threadId.toString() }.toTypedArray()
-                    )
+                if(context.settingsGetDeleteSystem) {
+                    context.deleteSmsThreads(threads
+                        .map { it.threadId.toString() }.toTypedArray())
                 }
             }
         }
@@ -224,7 +217,7 @@ open class ThreadsViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 context.getDatabase().threadsDao()?.setIsBlocked(isBlocked, addresses)
                 try {
-                    if (isBlocked) {
+                    if(isBlocked) {
                         context.unblockContact(addresses)
                     } else {
                         context.blockContact(addresses)
@@ -269,7 +262,7 @@ open class ThreadsViewModel : ViewModel() {
                         secondaryMessagesLoading = true
                     }
                     messagesLoading = false
-                } catch (e: Exception) {
+                } catch(e: Exception) {
                     e.printStackTrace()
                 } finally {
                     withContext(Dispatchers.Main) {
@@ -325,8 +318,7 @@ open class ThreadsViewModel : ViewModel() {
 
         return try {
             val res: Bundle? = context.contentResolver.call(
-                AUTHORITY_URI, METHOD_IS_BLOCKED, thread.address, null
-            );
+                AUTHORITY_URI, METHOD_IS_BLOCKED, thread.address, null);
             res != null && res.getBoolean(RES_NUMBER_IS_BLOCKED, false);
         } catch (e: Exception) {
             e.printStackTrace()
@@ -382,7 +374,7 @@ open class ThreadsViewModel : ViewModel() {
 
     class ContactRepository() {
         fun contactPhoto(context: Context, phoneNumber: String): Flow<String?> = flow {
-            val uri = if (!context.isDefault()) "" else context.retrieveContactPhoto(phoneNumber)
+            val uri = if(!context.isDefault()) "" else context.retrieveContactPhoto(phoneNumber)
             emit(uri)
         }.flowOn(Dispatchers.IO)
     }
@@ -394,37 +386,32 @@ open class ThreadsViewModel : ViewModel() {
         }
     }
 
-    class Migrations(private val threadsViewModel: ThreadsViewModel) {
+    class Migrations(private val threadsViewModel: ThreadsViewModel){
         private val dbV2Migration = "dbV2Migration"
 
         private fun Context.getMigratedV2(): Boolean {
             val sharedPreferences = getSharedPreferences(
-                ActivitiesConstant.ACTIVITIES_FILENAMES, Context.MODE_PRIVATE
-            )
+                ActivitiesConstant.ACTIVITIES_FILENAMES, Context.MODE_PRIVATE)
             return sharedPreferences.getBoolean(dbV2Migration, false)
         }
 
         private fun Context.setMigratedV2(load: Boolean) {
             val sharedPreferences = getSharedPreferences(
-                ActivitiesConstant.ACTIVITIES_FILENAMES, Context.MODE_PRIVATE
-            )
+                ActivitiesConstant.ACTIVITIES_FILENAMES, Context.MODE_PRIVATE)
             return sharedPreferences.edit {
                 putBoolean(dbV2Migration, load)
             }
         }
-
         fun migrateV1ToV2(context: Context) {
-            if (context.isDefault()) {
+            if(context.isDefault()) {
                 val roomVersion = context.getDatabase().openHelper.readableDatabase.version
-                if (roomVersion == 2 && !context.getMigratedV2()) {
+                if(roomVersion == 2 && !context.getMigratedV2()) {
                     threadsViewModel.loadNativesAsync(context) {
                         CoroutineScope(Dispatchers.Main).launch {
                             context.setMigratedV2(true)
-                            Toast.makeText(
-                                context,
+                            Toast.makeText(context,
                                 context.getString(R.string.secure_database_migrated),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                                Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -433,73 +420,6 @@ open class ThreadsViewModel : ViewModel() {
             }
         }
 
-    }
-
-}
-
-/**
- * This function maps a flow of paging data, such that it contains
- * necessary information that is frequently computed.
- * In this way, we reduce repetitive work that was previously done on the UI.
- */
-fun Flow<PagingData<Threads>>.enrich(
-    threadsViewModel: ThreadsViewModel,
-    context: Context,
-): Flow<PagingData<ThreadsExtended>> {
-    return this.map { page ->
-        page.map { ThreadsExtended(it, threadsViewModel, context) }
-    }
-}
-
-
-/**
- * This class provides access to the same fields that a Threads object has,
- * while providing useful additional fields.
- * The additional fields are mostly about values that are lazily computed and cached.
- */
-@Immutable
-data class ThreadsExtended(
-    val raw: Threads,
-    private val threadsViewModel: ThreadsViewModel,
-    private val context: Context
-) {
-
-    val contactName by lazy {
-        // Now, why? query the system to fetch a contact for a sender id, when it's technically impossible
-        // to store a contact whose "number" is a text-based sender id?
-        if (!this.canBeContact) {
-            raw.address
-        } else {
-            context.retrieveContactName(raw.address)
-        }
-    }
-
-    val contactPhotoUri by lazy {
-        // Now, why search for contact photo for an address that is not saveable as a contact?
-        // Where should the contact photo come from?
-        if (!this.canBeContact) return@lazy null
-
-        threadsViewModel
-            .contactPhoto(context, raw.address).value
-    }
-
-    val isContact by lazy {
-        if (!this.canBeContact) {
-            false
-        } else {
-            !contactName.isNullOrBlank()
-        }
-    }
-
-    /**
-     * This field tells us if the address is saveable as a contact.
-     * This helps us reduce unnecessary computation in other areas.
-     */
-    val canBeContact by lazy {
-        // The address can be a contact, if it starts with a numeric value
-        // When checking, let's not check the entire sequence. Let's further cut costs, by
-        // checking only the first character.
-        Regex("^[0-9+]$").matches(raw.address.first().toString())
     }
 
 }
