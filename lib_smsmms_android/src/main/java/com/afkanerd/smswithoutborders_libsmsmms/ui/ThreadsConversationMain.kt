@@ -122,7 +122,6 @@ data class ThreadsConversationParameters(
     var searchQuery: String? = null,
 )
 
-@SuppressLint("FlowOperatorInvokedInComposition")
 @OptIn(
     ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class,
     ExperimentalFoundationApi::class, ExperimentalPermissionsApi::class
