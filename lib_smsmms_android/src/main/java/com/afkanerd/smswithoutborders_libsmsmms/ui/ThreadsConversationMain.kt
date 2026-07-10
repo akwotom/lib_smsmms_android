@@ -1,7 +1,8 @@
 package com.afkanerd.smswithoutborders_libsmsmms.ui
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Debug
-import android.provider.BlockedNumberContract.isBlocked
 import android.provider.Telephony
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -33,12 +34,10 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.PianoOff
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -57,6 +56,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -86,11 +86,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.paging.LoadState.Loading
 import androidx.paging.PagingData
-import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
-import coil3.Uri
-import coil3.toUri
+import androidx.paging.map
 import com.afkanerd.lib_smsmms_android.R
 import com.afkanerd.smswithoutborders_libsmsmms.data.data.models.DateTimeUtils
 import com.afkanerd.smswithoutborders_libsmsmms.data.entities.Threads
@@ -114,14 +112,17 @@ import com.afkanerd.smswithoutborders_libsmsmms.ui.viewModels.ThreadsViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.collections.map
 import kotlin.math.roundToInt
 
 data class ThreadsConversationParameters(
     var searchQuery: String? = null,
 )
 
+@SuppressLint("FlowOperatorInvokedInComposition")
 @OptIn(
     ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class,
     ExperimentalFoundationApi::class, ExperimentalPermissionsApi::class
@@ -151,7 +152,7 @@ fun ThreadConversationLayout(
     val messagesAreLoading = threadsViewModel.messagesLoading
     val secondaryMessagesAreLoading = threadsViewModel.secondaryMessagesLoading
 
-    var inboxType by remember { mutableStateOf(ThreadsViewModel.InboxType.INBOX )}
+    var inboxType by remember { mutableStateOf(ThreadsViewModel.InboxType.INBOX) }
     val isAndroidJUnitTest = try {
         Class.forName("androidx.test.runner.AndroidJUnitRunner")
         true
@@ -173,11 +174,15 @@ fun ThreadConversationLayout(
 
     val selectedItems by threadsViewModel.selectedItems.collectAsState()
 
-    val inboxMessagesPagers = threadsViewModel.getThreads(context)
-    val archivedMessagesPagers = threadsViewModel.getArchives(context)
+
+    val inboxMessagesPagers =
+        threadsViewModel.getThreads(context)
+    val archivedMessagesPagers =
+        threadsViewModel.getArchives(context)
     val draftMessagesPagers = threadsViewModel.getDrafts(context)
     val mutedMessagesPagers = threadsViewModel.getIsMute(context)
-    val blockedMessagesPager = threadsViewModel.getIsBlocked(context)
+    val blockedMessagesPager =
+        threadsViewModel.getIsBlocked(context)
 
     val inboxMessagesItems = inboxMessagesPagers.collectAsLazyPagingItems()
     val archivedMessagesItems = archivedMessagesPagers.collectAsLazyPagingItems()
@@ -203,6 +208,9 @@ fun ThreadConversationLayout(
     var rememberDeleteMenu by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+
+
+    var cachedExtras: HashMap<String, ThreadsExtended> = HashMap()
 
     BackHandler(
         inboxType != ThreadsViewModel.InboxType.INBOX ||
@@ -563,12 +571,13 @@ fun ThreadConversationLayout(
                     if (!isDefault || !readPhoneStatePermission.status.isGranted) {
                         DefaultCheckMain { isDefault = context.isDefault() }
                     }
-                    if(secondaryMessagesAreLoading || isAndroidJUnitTest || inPreviewMode)
+                    if (secondaryMessagesAreLoading || isAndroidJUnitTest || inPreviewMode)
                         LinearProgressIndicator(
-                            Modifier.fillMaxWidth()
+                            Modifier
+                                .fillMaxWidth()
                                 .testTag("secondaryMessagesAreLoading")
                         )
-                    if(messagesAreLoading || inPreviewMode)  {
+                    if (messagesAreLoading || inPreviewMode) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.Center,
@@ -628,6 +637,8 @@ fun ThreadConversationLayout(
                                     key = displayedInbox.itemKey { it.threadId }
                                 ) { index ->
                                     val thread = displayedInbox[index] ?: return@items
+
+                                    val extra = cachedExtras.getItem(thread, threadsViewModel, context)
 
                                     val offsetX = remember { Animatable(0f) }
                                     val threshold = 300f
@@ -700,24 +711,6 @@ fun ThreadConversationLayout(
                                         ) {
                                             val address = thread.address
 
-                                            val isBlocked = remember(thread.threadId) {
-                                                if (isDefault)
-                                                    threadsViewModel.isBlocked(
-                                                        context, thread,
-                                                        blockedMessagesItems.itemSnapshotList.items
-                                                    )
-                                                else false
-                                            }
-
-                                            val contactName = remember(address) {
-                                                if (isDefault)
-                                                    context.retrieveContactName(address)
-                                                else address
-                                            }
-
-                                            val contactPhotoUri by threadsViewModel
-                                                .contactPhoto(context, address)
-                                                .collectAsState()
 
                                             val isSelected = remember(selectedItems) {
                                                 selectedItems.contains(thread)
@@ -732,12 +725,12 @@ fun ThreadConversationLayout(
 
                                             ThreadConversationCard(
                                                 id = thread.threadId,
-                                                name = contactName ?: address,
+                                                name = extra.contactName ?: thread.address,
                                                 content = thread.snippet,
                                                 date = date,
                                                 isRead = !thread.unread,
-                                                isContact = isDefault && !contactName.isNullOrBlank(),
-                                                isBlocked = isBlocked,
+                                                isContact = extra.isContact,
+                                                isBlocked = inboxType == ThreadsViewModel.InboxType.BLOCKED,
                                                 isPinned = thread.isPinned,
                                                 modifier = Modifier.combinedClickable(
                                                     onClick = {
@@ -784,7 +777,7 @@ fun ThreadConversationLayout(
                                                 type = thread.type,
                                                 unreadCount = thread.unreadCount,
                                                 mms = thread.isMms,
-                                                contactPhotoUri = contactPhotoUri,
+                                                contactPhotoUri = extra.contactPhotoUri,
                                             )
                                         }
                                     }
@@ -814,6 +807,76 @@ fun ThreadConversationLayout(
         }
     }
 
+}
+
+/**
+ * This class provides access to the same fields that a Threads object has,
+ * while providing useful additional fields.
+ * The additional fields are mostly about values that are lazily computed and cached.
+ */
+@Immutable
+data class ThreadsExtended(
+    val raw: Threads,
+    private val threadsViewModel: ThreadsViewModel,
+    private val context: Context
+) {
+
+    val contactName by lazy {
+        // Now, why? query the system to fetch a contact for a sender id, when it's technically impossible
+        // to store a contact whose "number" is a text-based sender id?
+        if (!this.canBeContact) {
+            raw.address
+        } else {
+            context.retrieveContactName(raw.address)
+        }
+    }
+
+    val contactPhotoUri by lazy {
+        // Now, why search for contact photo for an address that is not saveable as a contact?
+        // Where should the contact photo come from?
+        if (!this.canBeContact) return@lazy null
+
+        threadsViewModel
+            .contactPhoto(context, raw.address).value
+    }
+
+    val isContact by lazy {
+        if (!this.canBeContact) {
+            false
+        } else {
+            !contactName.isNullOrBlank()
+        }
+    }
+
+    /**
+     * This field tells us if the address is saveable as a contact.
+     * This helps us reduce unnecessary computation in other areas.
+     */
+    val canBeContact by lazy {
+        // The address can be a contact, if it starts with a numeric value
+        // When checking, let's not check the entire sequence. Let's further cut costs, by
+        // checking only the first character.
+        Regex("^[0-9+]$").matches(raw.address.first().toString())
+    }
+
+}
+
+
+/**
+ * This function maps a flow of paging data, such that it contains
+ * necessary information that is frequently computed.
+ * In this way, we reduce repetitive work that was previously done on the UI.
+ */
+fun HashMap<String, ThreadsExtended>.getItem(
+    thread: Threads,
+    threadsViewModel: ThreadsViewModel,
+    context: Context,
+): ThreadsExtended {
+    // We don't need to always keep re-constructing this object.
+    // We need a way to cache this within the current context
+    return this.getOrPut(thread.address, {
+        ThreadsExtended(thread, threadsViewModel, context)
+    })
 }
 
 @Preview

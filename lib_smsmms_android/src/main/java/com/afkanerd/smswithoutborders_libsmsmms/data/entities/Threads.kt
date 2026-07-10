@@ -1,11 +1,13 @@
 package com.afkanerd.smswithoutborders_libsmsmms.data.entities
 
 import android.provider.Telephony
+import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(indices = [Index(value = ["address"], unique = true)])
 data class Threads(
     @PrimaryKey var threadId: Int,
